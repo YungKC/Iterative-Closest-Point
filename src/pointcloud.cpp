@@ -4,7 +4,7 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-Pointcloud::Pointcloud(string filename) {
+Pointcloud::Pointcloud(string filename, float scale) {
     cout << "Reading scene from " << filename << " ..." << endl;
     cout << " " << endl;
     char* fname = (char*)filename.c_str();
@@ -19,7 +19,8 @@ Pointcloud::Pointcloud(string filename) {
         utilityCore::safeGetline(fp_in, line);
         if (!line.empty()) {
             vector<string> tokens = utilityCore::tokenizeString(line);
-			glm::vec4 pt(atoi(tokens[2].c_str()), atoi(tokens[0].c_str()), atoi(tokens[1].c_str()), i++);
+//			glm::vec4 pt(atof(tokens[2].c_str()), atof(tokens[0].c_str()), atof(tokens[1].c_str()), 1);
+            glm::vec4 pt(atof(tokens[0].c_str())*scale, atof(tokens[1].c_str())*scale, atof(tokens[2].c_str())*scale, 1);
 			points.push_back(pt);
         }
     }

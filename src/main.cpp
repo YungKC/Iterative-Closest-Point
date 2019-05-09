@@ -40,12 +40,16 @@ Pointcloud *target = NULL;
 int main(int argc, char* argv[]) {
 	projectName = "CIS565: GPU Accelerated ICP";
 
+	if (argc != 3) {
+		cout << "usage: " << argv[0] << " <scene> <target> <scale>" << endl;
+	}
 	const char *sceneFile = argv[1];
 	const char *targetFile = argv[2];
 
 	// Load scene file
-	scene = new Pointcloud(sceneFile);
-	target = new Pointcloud(targetFile);
+	float scale = atof(argv[3]);
+	scene = new Pointcloud(sceneFile, scale);
+	target = new Pointcloud(targetFile, scale);
 
 	if (init(argc, argv)) {
 		mainLoop();
@@ -131,8 +135,11 @@ bool init(int argc, char **argv) {
   
   // Initialize N-body simulation
   ICP::unitTest();
-  ICP::initSimulation(scene->points, target->points);
 
+  double time = glfwGetTime();
+  ICP::initSimulation(scene->points, target->points);
+  std::cout << "init time: " << glfwGetTime()-time << "seconds." << std::endl;
+  
   updateCamera();
 
   initShaders(program);
@@ -220,13 +227,14 @@ void runCUDA() {
 	cudaGLMapBufferObject((void**)&dptrVertPositions, boidVBO_positions);
 	cudaGLMapBufferObject((void**)&dptrVertVelocities, boidVBO_velocities);
 
+//	auto start = std::chrono::steady_clock::now();
 	// execute the kernel
 	#if GPU_ENABLED
 	ICP::stepGPU();
 	#else
 	ICP::stepCPU();
 	#endif
-
+//	std::cout << "icp time: " << std::chrono::duration<float,milli>(std::chrono::steady_clock::now()-start).count() << " ms." << endl;
 
 	#if VISUALIZE
 	ICP::copyPointsToVBO(dptrVertPositions, dptrVertVelocities);

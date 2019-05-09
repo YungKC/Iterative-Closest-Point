@@ -15,7 +15,6 @@
 #include "kernel.h"
 #include "device_launch_parameters.h"
 
-
 // Controls for ICP implementation
 #define KD_TREE_SEARCH 1
 #define INITIAL_ROT 1
@@ -164,28 +163,44 @@ void ICP::initSimulation(std::vector<glm::vec4>	scene, std::vector<glm::vec4>	ta
 	for (int i = 0; i < sizeScene; i++)
 		checksum += scene[i].w;
 
+	printf("sizeScene: %i\n", sizeScene);
+
 	KDTree::Node *kd = new KDTree::Node[sizeScene];
 	KDTree::Create(scene, kd);
-
-	cudaMemcpy(dev_kd, kd, sizeScene*sizeof(KDTree::Node), cudaMemcpyHostToDevice);
 
 	int testsum = 0;
 	for (int i = 0; i < sizeScene; i++) {
 		testsum += kd[i].value.w;
 	}
-	printf("kd size: %i\n", sizeScene*sizeof(KDTree::Node));
+	printf("checksum and kd size: %i, %i, %lu\n", checksum, testsum, sizeScene*sizeof(KDTree::Node));
 
 	//verify all items are in the kd tree
 	assert(checksum == testsum);
-	
+
+	cudaMemcpy(dev_kd, kd, sizeScene*sizeof(KDTree::Node), cudaMemcpyHostToDevice);
+	checkCUDAErrorWithLine("cudaMemcpy kdTree failed!");
+
+	testsum = 0;
+	for (int i = 0; i < sizeScene; i++) {
+		testsum += kd[i].value.w;
+	}
+	printf("checksum and kd size after cudaMemcpy: %i, %i, %lu\n", checksum, testsum, sizeScene*sizeof(KDTree::Node));
+
+	//verify all items are in the kd tree
+	assert(checksum == testsum);
+
 	// copy both scene and target to output points
 	cudaMemcpy(dev_pos, &scene[0], scene.size()*sizeof(glm::vec4), cudaMemcpyHostToDevice);
 	cudaMemcpy(&dev_pos[scene.size()], &target[0], target.size()*sizeof(glm::vec4), cudaMemcpyHostToDevice);
 
 #if INITIAL_ROT
 	//add rotation and translation to target for test;
-	glm::vec3 t(80, -22, 100);
-	glm::vec3 r(-.5, .6, .8);
+//	glm::vec3 t(80, -22, 100);
+//	glm::vec3 r(-.5, .6, .8);
+//	glm::vec3 s(1, 1, 1);
+
+	glm::vec3 t(2, 2, 2);
+	glm::vec3 r(-.1, .1, .1);
 	glm::vec3 s(1, 1, 1);
 	glm::mat4 initial_rot = utilityCore::buildTransformationMatrix(t, r, s);
 	transformPoint << <dim3((target.size() + blockSize - 1) / blockSize), blockSize >> >(target.size(), &dev_pos[scene.size()], initial_rot);
@@ -308,6 +323,7 @@ __device__ float getHyperplaneDist(const glm::vec4 *pt1, const glm::vec4 *pt2, i
 		*branch = sortFuncZ(*pt1, *pt2);
 		return abs(pt1->z - pt2->z);
 	}
+	return NAN;
 }
 
 __global__ void findCorrespondenceKD(int N, int sizeScene, glm::vec4 *cor, const glm::vec4 *points, const KDTree::Node* tree)
@@ -548,20 +564,20 @@ void ICP::checkConvergence(int thresh) {
 void ICP::unitTest() {
 
 	std::vector<glm::vec4> test;
-	for (int i = 0; i < 16; i++) 
-		test.push_back(glm::vec4((6 - 2 * i) % 3, -i % 4, i, i));
+	for (int i = 0; i < 17; i++) 
+		test.push_back(glm::vec4((6 - 2 * i) % 3, -i % 4, i, 1));
 	
-	KDTree::Node *nd = new KDTree::Node[16];
+	KDTree::Node *nd = new KDTree::Node[17];
 	KDTree::Create(test, nd);
 
 	printf("nodes: \n");
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < 17; i++)
 		printf("  %i: parent(%i), axis(%i), children(%i %i), val (%f %f %f)\n", i,
 			nd[i].parent, nd[i].axis, nd[i].left, nd[i].right, nd[i].value.x, nd[i].value.y, nd[i].value.z);
 
 
-	glm::vec4 a(.1, .2, .3, 1234);
+	glm::vec4 a(.1, .2, .3, 1);
 	glm::vec3 b = glm::vec3(a);
 
-	//printf("\nb: %f %f %f (%f)\n", b.x, b.y, b.z, a.w);
+	printf("\nb: %f %f %f (%f)\n", b.x, b.y, b.z, a.w);
 }

@@ -13,7 +13,7 @@ class Pointcloud {
 private:
     ifstream fp_in;
 public:
-	Pointcloud(string filename);
+	Pointcloud(string filename, float scale);
 	~Pointcloud();
 
 	std::vector<glm::vec4>	points;

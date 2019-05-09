@@ -6,11 +6,14 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 # Set up include and lib paths
 set(EXTERNAL "external")
+include_directories("/home/kai/frameworks/glfw/include")
 include_directories("${EXTERNAL}/include")
-include_directories("${EXTERNAL}/src")
+# include_directories("${EXTERNAL}/src")
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(EXTERNAL_LIB_PATH "${EXTERNAL}/lib/osx")
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+#    set(EXTERNAL_LIB_PATH "${EXTERNAL}/lib/linux" "/usr/libx86_64-linux-gnu")
     set(EXTERNAL_LIB_PATH "${EXTERNAL}/lib/linux" "/usr/lib64")
 elseif(WIN32)
     set(EXTERNAL_LIB_PATH "${EXTERNAL}/lib/win")
@@ -22,7 +25,8 @@ list(APPEND CMAKE_LIBRARY_PATH "${EXTERNAL_LIB_PATH}")
 
 set(GLFW_INCLUDE_DIR "${EXTERNAL}/include")
 set(GLFW_LIBRARY_DIR "${CMAKE_LIBRARY_PATH}")
-find_library(GLFW_LIBRARY "glfw3" HINTS "${GLFW_LIBRARY_DIR}")
+
+find_library(GLFW_LIBRARY "glfw" HINTS "/home/kai/frameworks/glfw/build/src")
 
 set(GLEW_INCLUDE_DIR "${EXTERNAL}/include")
 set(GLEW_LIBRARY_DIR "${CMAKE_LIBRARY_PATH}")
@@ -41,7 +45,7 @@ set(CORELIBS
 set(CMAKE_CXX_STANDARD 11)
 
 # Enable CUDA debug info in debug mode builds
-list(APPEND CUDA_NVCC_FLAGS_DEBUG -G -g)
+# list(APPEND CUDA_NVCC_FLAGS_DEBUG -G -g)
 
 # OSX-specific hacks/fixes
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -51,22 +55,32 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif()
 
 # Linux-specific hacks/fixes
-if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lX11 -lXxf86vm -lXrandr -lXi")
-endif()
+# if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+#     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lX11 -lXxf86vm -lXrandr -lXi")
+# endif()
 
 # Crucial magic for CUDA linking
 find_package(Threads REQUIRED)
 find_package(CUDA REQUIRED)
 
 set(CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE ON)
-set(CUDA_SEPARABLE_COMPILATION ON)
+# set(CUDA_SEPARABLE_COMPILATION ON)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 endif()
 
 add_subdirectory(src)
+
+set(
+    CUDA_NVCC_FLAGS 
+    ${CUDA_NVCC_FLAGS};
+    -Wno-deprecated-gpu-targets
+    -std=c++11
+    -lineinfo
+    -arch=sm_61
+#    --default-stream per-thread
+    )
 
 cuda_add_executable(${CMAKE_PROJECT_NAME}
     "src/main.hpp"
